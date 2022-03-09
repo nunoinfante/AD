@@ -7,7 +7,7 @@ Números de aluno:
 
 # zona para fazer importação
 
-import sock_utils as su
+import sock_utils, pickle, struct
 
 # definição da classe server_connection 
 
@@ -28,15 +28,25 @@ class server_connection:
         """
         Estabelece a ligação ao servidor especificado na inicialização.
         """
-        self.sock = su.create_tcp_client_socket(self.address, self.port)
+        self.sock = sock_utils.create_tcp_client_socket(self.address, self.port)
 
     def send_receive(self, data):
         """
         Envia os dados contidos em data para a socket da ligação, e retorna
         a resposta recebida pela mesma socket.
         """
-        self.sock.sendall(data)
-        resposta = self.sock.recv(1024)
+        msg_bytes = pickle.dumps(data, -1)
+        size_bytes = struct.pack('i', len(msg_bytes))
+
+        self.sock.sendall(size_bytes)
+        self.sock.sendall(msg_bytes)
+
+        size_bytes = sock_utils.receive_all(self.sock, 4)
+        size = struct.unpack('i', size_bytes)[0]
+
+        resposta_bytes = self.sock.recv(size)
+        resposta = pickle.loads(resposta_bytes)
+        
         return resposta
 
     def close(self):
