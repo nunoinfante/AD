@@ -1,15 +1,21 @@
 import socket as s
+import sys, sock_utils
 
-HOST = '127.0.0.1'
-PORT = 9999
+if len(sys.argv) > 1:
+    HOST = sys.argv[1]
+    PORT = int(sys.argv[2])
+else:
+    HOST = '127.0.0.1'
+    PORT = 9999
 
-sock = s.socket(s.AF_INET, s.SOCK_STREAM)
+while True:
+    sock = sock_utils.create_tcp_client_socket(HOST, PORT)
+    msg = input('comando > ')
 
-sock.connect((HOST, PORT))
+    if msg == 'EXIT':
+        break
 
-sock.sendall(b'Vamos aprender isto!')
-resposta = sock.recv(1024)
-
-print('Recebi %s' % resposta)
-
+    sock.sendall(msg.encode('utf-8'))
+    resposta = sock_utils.receive_all(sock, 1024)
+    print(resposta.decode('utf-8'))
 sock.close()
