@@ -21,68 +21,68 @@ if len(sys.argv) == 4:
 
     while True:
         comando = input('comando > ')
-        comando = comando.replace('-', ' ').split()
+        comando_split = comando.replace('-', ' ').split()
 
-        if comando[0] == 'EXIT':
-            if len(comando) != 1:
+        if comando_split[0] == 'EXIT':
+            if len(comando_split) != 1:
                 print('Sintaxe incorreta')
             else:
                 break
 
-        elif (comando[0] == 'LOCK') and (comando[1] == 'R' or comando[1] == 'W'):
-            if len(comando) != 4:
+        elif (comando_split[0] == 'LOCK') and (comando_split[1] == 'R' or comando_split[1] == 'W'):
+            if len(comando_split) != 4:
                 print('Sintaxe incorreta')
             else:
-                comando.append(client_id)
+                comando += ' ' + client_id
                 sock.connect()
-                resposta = sock.send_receive(comando)
+                resposta = sock.send_receive(comando.encode('utf-8'))
                 sock.close()
-                print(resposta)
+                print(resposta.decode('utf-8'))
         
-        elif (comando[0] == 'UNLOCK') and (comando[1] == 'R' or comando[1] == 'W'):
-            if len(comando) != 3:
+        elif (comando_split[0] == 'UNLOCK') and (comando_split[1] == 'R' or comando_split[1] == 'W'):
+            if len(comando_split) != 3:
                 print('Sintaxe incorreta')
             else:
-                comando.append(client_id)
+                comando += ' ' + client_id
                 sock.connect()
-                resposta = sock.send_receive(comando)
+                resposta = sock.send_receive(comando.encode('utf-8'))
                 sock.close()
-                print(resposta)
+                print(resposta.decode('utf-8'))
 
-        elif comando[0] == 'STATUS':
-            if len(comando) != 2:
-                print('Sintaxe incorreta')
-            else:
-                sock.connect()
-                resposta = sock.send_receive(comando)
-                sock.close()
-                print(resposta)
-
-        elif comando[0] == 'SLEEP':
-            if len(comando) != 2:
-                print('Sintaxe incorreta')
-            else:
-                time.sleep(int(comando[1]))
-
-        elif comando[0] == 'STATS' and (comando[1] == 'N' or comando[1] == 'D' or comando[1] == 'K'):
-            if comando[1] == 'K' and len(comando) != 3:
-                print('Sintaxe incorreta')
-            elif (comando[1] == 'N' or comando[1] == 'D') and len(comando) != 2:
+        elif comando_split[0] == 'STATUS':
+            if len(comando_split) != 2:
                 print('Sintaxe incorreta')
             else:
                 sock.connect()
-                resposta = sock.send_receive(comando)
+                resposta = sock.send_receive(comando.encode('utf-8'))
                 sock.close()
-                print(resposta)
+                print(resposta.decode('utf-8'))
+
+        elif comando_split[0] == 'SLEEP':
+            if len(comando_split) != 2:
+                print('Sintaxe incorreta')
+            else:
+                time.sleep(int(comando_split[1]))
+
+        elif comando_split[0] == 'STATS' and (comando_split[1] == 'N' or comando_split[1] == 'D' or comando_split[1] == 'K'):
+            if comando_split[1] == 'K' and len(comando_split) != 3:
+                print('Sintaxe incorreta')
+            elif (comando_split[1] == 'N' or comando_split[1] == 'D') and len(comando_split) != 2:
+                print('Sintaxe incorreta')
+            else:
+                sock.connect()
+                resposta = sock.send_receive(comando.encode('utf-8'))
+                sock.close()
+                print(resposta.decode('utf-8'))
         
-        elif comando[0] == 'PRINT':
-            if len(comando) != 1:
+        elif comando_split[0] == 'PRINT':
+            if len(comando_split) != 1:
                 print('Sintaxe incorreta')
             else:
                 sock.connect()
-                resposta = sock.send_receive(comando)
+                resposta = sock.send_receive(comando.encode('utf-8'))
                 sock.close()
-                print(resposta)
+                print(resposta.decode('utf-8'))
         else:
             print('Comando desconhecido')
 

@@ -35,18 +35,8 @@ class server_connection:
         Envia os dados contidos em data para a socket da ligação, e retorna
         a resposta recebida pela mesma socket.
         """
-        msg_bytes = pickle.dumps(data, -1)
-        size_bytes = struct.pack('i', len(msg_bytes))
-
-        self.sock.sendall(size_bytes)
-        self.sock.sendall(msg_bytes)
-
-        size_bytes = sock_utils.receive_all(self.sock, 4)
-        size = struct.unpack('i', size_bytes)[0]
-
-        resposta_bytes = self.sock.recv(size)
-        resposta = pickle.loads(resposta_bytes)
-        
+        self.sock.sendall(data)
+        resposta = self.sock.recv(1024)
         return resposta
 
     def close(self):

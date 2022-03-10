@@ -7,8 +7,6 @@ Números de aluno:
 """
 
 # Zona para fazer importação
-from itertools import count
-import pickle, struct
 import sys, sock_utils, time
 
 ###############################################################################
@@ -18,14 +16,12 @@ class resource_lock:
         """
         Define e inicializa as propriedades do recurso para os bloqueios.
         """
-        self.id = resource_id
-        self.estado = 'UNLOCKED'
-        self.contador = 0
-        self.blockEscrita = []
-        self.blockLeitura = []
-        self.clienteId = None
+        self.state = 'UNLOCKED'
+        self.resource_id = resource_id
+        self.lock_w_count = 0
+        self.lock_r = []
+        self.lock_w = []
         self.deadline = 0
-
 
     def lock(self, type, client_id, time_limit):
         """
@@ -35,34 +31,33 @@ class resource_lock:
         """
         if type == 'W':
             if self.status() == 'UNLOCKED':
-                self.estado = 'LOCKED-W'
-                self.contador += 1
-                self.clienteId = client_id
+                self.state = 'LOCKED-W'
+                self.lock_w_count += 1
                 self.deadline = time.time() + time_limit
-                self.blockEscrita.append((client_id, self.deadline))
+                self.lock_w.append((client_id, self.deadline))
                 return 'OK'
             else:
                 return 'NOK'
         else:
-            if self.status() == 'LOCKED-R' or self.status() == 'UNLOCKED':
+            if self.status() in ['LOCKED-R', 'UNLOCKED']:
                 self.deadline = time.time() + time_limit
-                self.blockLeitura.append((client_id, self.deadline))
-                self.estado = 'LOCKED-R'
+                self.lock_r.append((client_id, self.deadline))
+                self.state = 'LOCKED-R'
                 return 'OK'
             else:
                 return 'NOK'
-                
+
 
     def release(self):
         """
         Liberta o recurso incondicionalmente, alterando os valores associados
         ao bloqueio.
         """
-        self.estado = 'UNLOCKED'
-        self.contador = 0
-        self.blockEscrita = []
-        self.blockLeitura = []
-        self.deadline = 0
+        self.state = 'UNLOCKED'
+        #self.lock_w_count = 0
+        #self.lock_r = []
+        #self.lock_w = []
+        #self.deadline = 0
 
     def unlock(self, type, client_id):
         """
@@ -71,19 +66,22 @@ class resource_lock:
         de escrita (type=W) ou de leitura (type=R), consoante o tipo.
         """
         if type == 'W':
-            if self.status() == 'LOCKED-W' and self.clienteId == client_id:
-                self.blockEscrita = [(id, deadline) for (id, deadline) in self.blockEscrita if id != client_id]
-                self.estado = 'UNLOCKED'
+            if self.status() == 'LOCKED-W' and client_id == self.lock_w[0][0]:
+                self.lock_w.pop(-1)
+                self.state = 'UNLOCKED'
                 return 'OK'
-            elif self.status() == 'UNLOCKED' or self.status() == 'DISABLED' or self.clienteId != client_id:
+            else:
                 return 'NOK'
         else:
-            if self.status() == 'LOCKED-R' and self.clienteId == client_id:
-                self.blockLeitura = [(id, deadline) for (id, deadline) in self.blockLeitura if id != client_id]
-                self.estado = 'UNLOCKED'
-                return 'OK'
-            elif self.status() == 'UNLOCKED' or self.status() == 'DISABLED':
-                return 'NOK'
+            r_id = list(map(lambda x : x[0], self.lock_r))
+            if self.status() == 'LOCKED-R' and client_id in r_id:
+                self.lock_r.pop(r_id.index(client_id))
+                if not self.lock_r:
+                    self.state = 'UNLOCKED'
+                return 'OK'                                  #tab ou n
+            else:
+                return 'NOK'                           #cobre todos?
+
 
 
     def status(self):
@@ -91,20 +89,23 @@ class resource_lock:
         Obtém o estado do recurso. Retorna LOCKED-W ou LOCKED-R ou UNLOCKED 
         ou DISABLED.
         """
-        return self.estado
+        return self.state
+
 
     def stats(self):
         """
         Retorna o número de bloqueios de escrita feitos neste recurso. 
         """
-        return self.contador
-   
+        return self.lock_w_count
+
+
     def disable(self):
         """
         Coloca o recurso como desabilitado incondicionalmente, alterando os 
         valores associados à sua disponibilidade.
         """
-        self.estado = 'DISABLED'
+        self.state = 'DISABLED'
+        
 
     def __repr__(self):
         """
@@ -112,17 +113,14 @@ class resource_lock:
         esta função é usada, por exemplo, se uma instância da classe for
         passada à função print ou str.
         """
-        output = ""
-        # Se o recurso está bloqueado para a escrita:
-        # R <num do recurso> LOCKED-W <vezes bloqueios de escrita> <id do cliente> <deadline do bloqueio de escrita>
-        # Se o recurso está bloqueado para a leitura:
-        # R <num do recurso> LOCKED-R <vezes bloqueios de escrita> <num bloqueios de leitura atuais> <último deadline dos bloqueios de leitura>
-        # Se o recurso está desbloqueado:
-        # R <num do recurso> UNLOCKED
-        # Se o recurso está inativo:
-        # R <num do recurso> DISABLED
+        output = "R" + ' ' + str(self.resource_id) + ' ' + str(self.state) + ' ' + str(self.lock_w_count) + ' '
+        if self.status() == 'LOCKED-W':
+            output += str(self.lock_w[0][0]) + ' ' + str(round(self.deadline))
+        elif self.status() == 'LOCKED-R':
+            output += str(len(self.lock_r)) + ' ' + str(round(max(map(lambda x : x[1], self.lock_r))))        #--------
+        
 
-        return output
+        return output + '\n'
 
 ###############################################################################
 
@@ -146,7 +144,7 @@ class lock_pool:
         concessão tenha expirado.
         """
         for recurso in self.recursos:
-            if recurso.status(recurso.id) == 'LOCKED-W' or recurso.status(recurso.id) == 'LOCKED-R':
+            if recurso.status() == 'LOCKED-W' or recurso.status() == 'LOCKED-R':
                 if time.time() > recurso.deadline:
                     recurso.release()
 
@@ -158,7 +156,9 @@ class lock_pool:
         if resource_id >= len(self.recursos) or resource_id < 0:
             return 'UNKNOWN RESOURCE'
         for recurso in self.recursos:
-            if recurso.id == resource_id:
+            if recurso.stats() >= self.K:
+                recurso.disable()
+            if recurso.resource_id == resource_id:
                 return recurso.lock(type, client_id, time_limit)
 
     def unlock(self, type, resource_id, client_id):
@@ -169,7 +169,7 @@ class lock_pool:
         if resource_id >= len(self.recursos) or resource_id < 0:
             return 'UNKNOWN RESOURCE'
         for recurso in self.recursos:
-            if recurso.id == resource_id:
+            if recurso.resource_id == resource_id:
                 return recurso.unlock(type, client_id)
 
     def status(self, resource_id):
@@ -180,10 +180,9 @@ class lock_pool:
         if resource_id >= len(self.recursos) or resource_id < 0:
             return 'UNKNOWN RESOURCE'
         for recurso in self.recursos:
-            if recurso.id == resource_id:
+            if recurso.resource_id == resource_id:
                 return recurso.status()
 
-    #FIX UNKNOWN RESOURCE OPTION K
     def stats(self, option, resource_id=0):
         """
         Obtém o estado do serviço de gestão de bloqueios. Se option for K, retorna <número de 
@@ -195,7 +194,7 @@ class lock_pool:
             if resource_id >= len(self.recursos) or resource_id < 0:
                 return 'UNKNOWN RESOURCE'
             for recurso in self.recursos:
-                if recurso.id == resource_id:
+                if recurso.resource_id == resource_id:
                     return recurso.stats()
         elif option == 'N':
             counter = 0
@@ -217,9 +216,8 @@ class lock_pool:
         passada à função print ou str.
         """
         output = ""
-        #
-        # Acrescentar no output uma linha por cada recurso
-        #
+        for recurso in self.recursos:
+            output += str(recurso.__repr__())
         return output
 
 ###############################################################################
@@ -236,31 +234,24 @@ sock = sock_utils.create_tcp_server_socket(HOST, PORT, 1)
 
 while True:
     (conn_sock, (addr, port)) = sock.accept()
-    
-    size_bytes = sock_utils.receive_all(conn_sock, 4)
-    size = struct.unpack('i', size_bytes)[0]
 
-    msg_bytes = conn_sock.recv(size)
-    msg = pickle.loads(msg_bytes)
+    lock_pool.clear_expired_locks()
 
-    print(msg)
+    msg = sock_utils.receive_all(conn_sock, 1024)
+    msg = msg.decode('utf-8')
+    msg_split = msg.replace('-', ' ').split()
 
-    if msg[0] == 'LOCK':
-        resp = lock_pool.lock((msg[1]), int(msg[2]), int(msg[4]), int(msg[3]))
-    elif msg[0] == 'UNLOCK':
-        resp = lock_pool.unlock(msg[1], int(msg[2]), int(msg[3]))
-    elif msg[0] == 'STATUS':
-        resp = lock_pool.status(int(msg[1]))
-    elif msg[0] == 'STATS' and msg[1] == 'K':
-        resp = lock_pool.stats(msg[1], int(msg[2]))
-    elif msg[0] == 'STATS' and (msg[1] == 'N' or msg[1] == 'D'):
-        resp = lock_pool.stats(msg[1])
+    if msg_split[0] == 'LOCK':
+        resp = lock_pool.lock((msg_split[1]), int(msg_split[2]), int(msg_split[4]), int(msg_split[3]))
+    elif msg_split[0] == 'UNLOCK':
+        resp = lock_pool.unlock(msg_split[1], int(msg_split[2]), int(msg_split[3]))
+    elif msg_split[0] == 'STATUS':
+        resp = lock_pool.status(int(msg_split[1]))
+    elif msg_split[0] == 'STATS' and msg_split[1] == 'K':
+        resp = lock_pool.stats(msg_split[1], int(msg_split[2]))
+    elif msg_split[0] == 'STATS' and (msg_split[1] == 'N' or msg_split[1] == 'D'):
+        resp = lock_pool.stats(msg_split[1])
+    elif msg_split[0] == 'PRINT':
+        resp = lock_pool.__repr__()
 
-
-
-
-    msg_bytes = pickle.dumps(resp, -1)
-    size_bytes = struct.pack('i', len(msg_bytes))
-
-    conn_sock.sendall(size_bytes)
-    conn_sock.sendall(msg_bytes)
+    conn_sock.sendall(str(resp).encode('utf-8'))

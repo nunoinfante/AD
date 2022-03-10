@@ -16,11 +16,6 @@ def create_tcp_client_socket(address, port):
 
 #dados_recebidos = receive_all(socket, length)
 def receive_all(socket, length):
-    data = bytearray()
-    while len(data) < length:
-        packet = socket.recv(length - len(data))
-        if not packet:
-            return None
-        data.extend(packet)
-    return data
+	dados_recebidos = socket.recv(length)
+	return dados_recebidos
 
