@@ -244,31 +244,39 @@ if len(sys.argv) == 5:
 sock = sock_utils.create_tcp_server_socket(HOST, PORT, 1)
 
 while True:
-    (conn_sock, (addr, port)) = sock.accept()
+    try:
+        (conn_sock, (addr, port)) = sock.accept()
 
-    print('Ligado a: %s no porto %s' % (addr, port))
+        print('Ligado a: %s no porto %s' % (addr, port))
 
-    lock_pool.clear_expired_locks()
-    lock_pool.check_disabled_locks()
+        lock_pool.clear_expired_locks()
+        lock_pool.check_disabled_locks()
 
-    msg = sock_utils.receive_all(conn_sock, 1024)
-    msg = msg.decode('utf-8')
-    msg_split = msg.replace('-', ' ', 1).split()
+        msg = sock_utils.receive_all(conn_sock, 1024)
+        msg = msg.decode('utf-8')
+        msg_split = msg.replace('-', ' ', 1).split()
 
-    if msg_split[0] == 'LOCK':
-        resp = lock_pool.lock((msg_split[1]), int(msg_split[2]), int(msg_split[4]), int(msg_split[3]))
-    elif msg_split[0] == 'UNLOCK':
-        resp = lock_pool.unlock(msg_split[1], int(msg_split[2]), int(msg_split[3]))
-    elif msg_split[0] == 'STATUS':
-        resp = lock_pool.status(int(msg_split[1]))
-    elif msg_split[0] == 'STATS' and msg_split[1] == 'K':
-        resp = lock_pool.stats(msg_split[1], int(msg_split[2]))
-    elif msg_split[0] == 'STATS' and (msg_split[1] == 'N' or msg_split[1] == 'D'):
-        resp = lock_pool.stats(msg_split[1])
-    elif msg_split[0] == 'PRINT':
-        resp = lock_pool.__repr__()
+        if msg_split[0] == 'LOCK':
+            resp = lock_pool.lock((msg_split[1]), int(msg_split[2]), int(msg_split[4]), int(msg_split[3]))
+        elif msg_split[0] == 'UNLOCK':
+            resp = lock_pool.unlock(msg_split[1], int(msg_split[2]), int(msg_split[3]))
+        elif msg_split[0] == 'STATUS':
+            resp = lock_pool.status(int(msg_split[1]))
+        elif msg_split[0] == 'STATS' and msg_split[1] == 'K':
+            resp = lock_pool.stats(msg_split[1], int(msg_split[2]))
+        elif msg_split[0] == 'STATS' and (msg_split[1] == 'N' or msg_split[1] == 'D'):
+            resp = lock_pool.stats(msg_split[1])
+        elif msg_split[0] == 'PRINT':
+            resp = lock_pool.__repr__()
 
-    print(msg)
-    print(resp)
+        print(msg)
+        print(resp)
 
-    conn_sock.sendall(str(resp).encode('utf-8'))
+        conn_sock.sendall(str(resp).encode('utf-8'))
+
+    except ValueError:
+        resp = "INVALID ARGUMENTS"
+        conn_sock.sendall(resp.encode('utf-8'))
+    else:
+        resp = "UNKNOWN ERROR"
+        conn_sock.sendall(resp.encode('utf-8'))

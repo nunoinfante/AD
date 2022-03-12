@@ -24,7 +24,7 @@ if len(sys.argv) == 4:
         comando_split = comando.split()
 
         print(comando)
-
+            
         if comando_split[0] == 'EXIT':
             if len(comando_split) != 1:
                 print('MISSING ARGUMENTS')
