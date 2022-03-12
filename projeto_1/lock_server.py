@@ -23,6 +23,7 @@ class resource_lock:
         self.lock_w = []
         self.deadline = 0
 
+
     def lock(self, type, client_id, time_limit):
         """
         Tenta bloquear o recurso pelo cliente client_id, durante time_limit 
@@ -54,10 +55,9 @@ class resource_lock:
         ao bloqueio.
         """
         self.state = 'UNLOCKED'
-        #self.lock_w_count = 0
-        #self.lock_r = []
-        #self.lock_w = []
-        #self.deadline = 0
+        self.lock_r = []
+        self.deadline = 0
+
 
     def unlock(self, type, client_id):
         """
@@ -78,10 +78,9 @@ class resource_lock:
                 self.lock_r.pop(r_id.index(client_id))
                 if not self.lock_r:
                     self.state = 'UNLOCKED'
-                return 'OK'                                  #tab ou n
+                return 'OK'
             else:
-                return 'NOK'                           #cobre todos?
-
+                return 'NOK'
 
 
     def status(self):
@@ -117,10 +116,10 @@ class resource_lock:
         if self.status() == 'LOCKED-W':
             output += str(self.lock_w[0][0]) + ' ' + str(round(self.deadline))
         elif self.status() == 'LOCKED-R':
-            output += str(len(self.lock_r)) + ' ' + str(round(max(map(lambda x : x[1], self.lock_r))))        #--------
+            output += str(len(self.lock_r)) + ' ' + str(round(max(map(lambda x : x[1], self.lock_r))))
         
-
         return output + '\n'
+
 
 ###############################################################################
 
@@ -137,6 +136,7 @@ class lock_pool:
             self.recursos.append(resource_lock(i))
         self.K = K
 
+
     def clear_expired_locks(self):
         """
         Verifica se os recursos que estão bloqueados ainda estão dentro do tempo
@@ -148,6 +148,15 @@ class lock_pool:
                 if time.time() > recurso.deadline:
                     recurso.release()
 
+    def check_disabled_locks(self):
+        """
+        Verifica se existem recursos que já atingiram os K bloqueios de escrita permitidos.
+        Em caso positivo, desativa esses recursos
+        """
+        for recurso in self.recursos:
+            if recurso.stats() >= self.K:
+                recurso.disable()
+
     def lock(self, type, resource_id, client_id, time_limit):
         """
         Tenta bloquear (do tipo R ou W) o recurso resource_id pelo cliente client_id, 
@@ -156,10 +165,9 @@ class lock_pool:
         if resource_id >= len(self.recursos) or resource_id < 0:
             return 'UNKNOWN RESOURCE'
         for recurso in self.recursos:
-            if recurso.stats() >= self.K:
-                recurso.disable()
             if recurso.resource_id == resource_id:
                 return recurso.lock(type, client_id, time_limit)
+
 
     def unlock(self, type, resource_id, client_id):
         """
@@ -172,6 +180,7 @@ class lock_pool:
             if recurso.resource_id == resource_id:
                 return recurso.unlock(type, client_id)
 
+
     def status(self, resource_id):
         """
         Obtém o estado de um recurso. Retorna LOCKED, UNLOCKED,
@@ -182,6 +191,7 @@ class lock_pool:
         for recurso in self.recursos:
             if recurso.resource_id == resource_id:
                 return recurso.status()
+
 
     def stats(self, option, resource_id=0):
         """
@@ -209,6 +219,7 @@ class lock_pool:
                     counter += 1
             return counter
 
+
     def __repr__(self):
         """
         Representação da classe para a saída standard. A string devolvida por
@@ -231,11 +242,13 @@ if len(sys.argv) == 5:
 
 sock = sock_utils.create_tcp_server_socket(HOST, PORT, 1)
 
-
 while True:
     (conn_sock, (addr, port)) = sock.accept()
 
+    print('Ligado a: %s no porto %s' % (addr, port))
+
     lock_pool.clear_expired_locks()
+    lock_pool.check_disabled_locks()
 
     msg = sock_utils.receive_all(conn_sock, 1024)
     msg = msg.decode('utf-8')
