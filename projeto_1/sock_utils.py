@@ -1,3 +1,9 @@
+"""
+Aplicações Distribuídas - Projeto 1 - sock_utils.py
+Grupo: 50
+Números de aluno: 53330, 55411
+"""
+
 import socket as s, pickle, struct
 
 #listener_socket = create_tcp_server_socket(address, port, queue_size)

@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Aplicações Distribuídas - Projeto 1 - lock_server.py
-Grupo:
-Números de aluno:
+Grupo: 50
+Números de aluno: 53330, 55411
 """
 
 # Zona para fazer importação
@@ -56,6 +56,7 @@ class resource_lock:
         """
         self.state = 'UNLOCKED'
         self.lock_r = []
+        self.lock_w = []
         self.deadline = 0
 
 
@@ -144,7 +145,7 @@ class lock_pool:
         concessão tenha expirado.
         """
         for recurso in self.recursos:
-            if recurso.status() == 'LOCKED-W' or recurso.status() == 'LOCKED-R':
+            if recurso.status() in ['LOCKED-W', 'LOCKED-R']:
                 if time.time() > recurso.deadline:
                     recurso.release()
 
@@ -252,7 +253,7 @@ while True:
 
     msg = sock_utils.receive_all(conn_sock, 1024)
     msg = msg.decode('utf-8')
-    msg_split = msg.replace('-', ' ').split()
+    msg_split = msg.replace('-', ' ', 1).split()
 
     if msg_split[0] == 'LOCK':
         resp = lock_pool.lock((msg_split[1]), int(msg_split[2]), int(msg_split[4]), int(msg_split[3]))
@@ -266,5 +267,8 @@ while True:
         resp = lock_pool.stats(msg_split[1])
     elif msg_split[0] == 'PRINT':
         resp = lock_pool.__repr__()
+
+    print(msg)
+    print(resp)
 
     conn_sock.sendall(str(resp).encode('utf-8'))

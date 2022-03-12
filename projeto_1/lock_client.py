@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Aplicações Distribuídas - Projeto 1 - lock_client.py
-Grupo:
-Números de aluno:
+Grupo: 50
+Números de aluno: 53330, 55411
 """
 # Zona para fazer imports
 import sys
@@ -21,17 +21,19 @@ if len(sys.argv) == 4:
 
     while True:
         comando = input('comando > ')
-        comando_split = comando.replace('-', ' ').split()
+        comando_split = comando.split()
+
+        print(comando)
 
         if comando_split[0] == 'EXIT':
             if len(comando_split) != 1:
-                print('Sintaxe incorreta')
+                print('MISSING ARGUMENTS')
             else:
                 break
 
-        elif (comando_split[0] == 'LOCK') and (comando_split[1] == 'R' or comando_split[1] == 'W'):
-            if len(comando_split) != 4:
-                print('Sintaxe incorreta')
+        elif comando_split[0] == 'LOCK-R' or comando_split[0] == 'LOCK-W':
+            if len(comando_split) != 3:
+                print('MISSING ARGUMENTS')
             else:
                 comando += ' ' + client_id
                 sock.connect()
@@ -39,9 +41,9 @@ if len(sys.argv) == 4:
                 sock.close()
                 print(resposta.decode('utf-8'))
         
-        elif (comando_split[0] == 'UNLOCK') and (comando_split[1] == 'R' or comando_split[1] == 'W'):
-            if len(comando_split) != 3:
-                print('Sintaxe incorreta')
+        elif comando_split[0] == 'UNLOCK-R' or comando_split[0] == 'UNLOCK-W':
+            if len(comando_split) != 2:
+                print('MISSING ARGUMENTS')
             else:
                 comando += ' ' + client_id
                 sock.connect()
@@ -51,7 +53,7 @@ if len(sys.argv) == 4:
 
         elif comando_split[0] == 'STATUS':
             if len(comando_split) != 2:
-                print('Sintaxe incorreta')
+                print('MISSING ARGUMENTS')
             else:
                 sock.connect()
                 resposta = sock.send_receive(comando.encode('utf-8'))
@@ -60,15 +62,15 @@ if len(sys.argv) == 4:
 
         elif comando_split[0] == 'SLEEP':
             if len(comando_split) != 2:
-                print('Sintaxe incorreta')
+                print('MISSING ARGUMENTS')
             else:
                 time.sleep(int(comando_split[1]))
 
         elif comando_split[0] == 'STATS' and (comando_split[1] == 'N' or comando_split[1] == 'D' or comando_split[1] == 'K'):
             if comando_split[1] == 'K' and len(comando_split) != 3:
-                print('Sintaxe incorreta')
+                print('MISSING ARGUMENTS')
             elif (comando_split[1] == 'N' or comando_split[1] == 'D') and len(comando_split) != 2:
-                print('Sintaxe incorreta')
+                print('MISSING ARGUMENTS')
             else:
                 sock.connect()
                 resposta = sock.send_receive(comando.encode('utf-8'))
@@ -77,17 +79,17 @@ if len(sys.argv) == 4:
         
         elif comando_split[0] == 'PRINT':
             if len(comando_split) != 1:
-                print('Sintaxe incorreta')
+                print('MISSING ARGUMENTS')
             else:
                 sock.connect()
                 resposta = sock.send_receive(comando.encode('utf-8'))
                 sock.close()
                 print(resposta.decode('utf-8'))
         else:
-            print('Comando desconhecido')
+            print('UNKNOWN COMMAND')
 
 else:
-    print('Sintaxe incorreta')
+    print('MISSING ARGUMENTS')
 
 
 
