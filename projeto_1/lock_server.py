@@ -229,7 +229,7 @@ class lock_pool:
         """
         output = ""
         for recurso in self.recursos:
-            output += str(recurso.__repr__())
+            output += str(recurso)
         return output
 
 ###############################################################################
