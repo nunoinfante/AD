@@ -133,7 +133,7 @@ class lock_pool:
         recurso. Ao atingir K bloqueios de escrita, o recurso fica desabilitado.
         """
         self.recursos = []
-        for i in range(N):
+        for i in range(1, N + 1):
             self.recursos.append(resource_lock(i))
         self.K = K
 
@@ -163,7 +163,7 @@ class lock_pool:
         Tenta bloquear (do tipo R ou W) o recurso resource_id pelo cliente client_id, 
         durante time_limit segundos. Retorna OK, NOK ou UNKNOWN RESOURCE.
         """
-        if resource_id >= len(self.recursos) or resource_id < 0:
+        if resource_id >= len(self.recursos) or resource_id <= 0:
             return 'UNKNOWN RESOURCE'
         for recurso in self.recursos:
             if recurso.resource_id == resource_id:
@@ -276,7 +276,4 @@ while True:
 
     except ValueError:
         resp = "INVALID ARGUMENTS"
-        conn_sock.sendall(resp.encode('utf-8'))
-    else:
-        resp = "UNKNOWN ERROR"
         conn_sock.sendall(resp.encode('utf-8'))

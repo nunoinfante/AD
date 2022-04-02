@@ -31,8 +31,8 @@ if len(sys.argv) == 4:
             else:
                 break
 
-        elif comando_split[0] == 'LOCK-R' or comando_split[0] == 'LOCK-W':
-            if len(comando_split) != 3:
+        elif (comando_split[0] == 'LOCK' or comando_split[0] == 'LOCK') and (comando_split[1] == 'R' or comando_split[1] == 'W'):
+            if len(comando_split) != 4:
                 print('MISSING ARGUMENTS')
             else:
                 comando += ' ' + client_id
@@ -41,8 +41,8 @@ if len(sys.argv) == 4:
                 sock.close()
                 print(resposta.decode('utf-8'))
         
-        elif comando_split[0] == 'UNLOCK-R' or comando_split[0] == 'UNLOCK-W':
-            if len(comando_split) != 2:
+        elif (comando_split[0] == 'UNLOCK' or comando_split[0] == 'UNLOCK') and (comando_split[1] == 'R' or comando_split[1] == 'W'):
+            if len(comando_split) != 3:
                 print('MISSING ARGUMENTS')
             else:
                 comando += ' ' + client_id
