@@ -22,16 +22,16 @@ while True:
     msg_bytes = pickle.dumps(msg_split, -1)
     size_bytes = struct.pack('i', len(msg_bytes))
     
-    #envia a mensagem
+    #envia a mensagem em bytes
     conn_sock.sendall(size_bytes)
     conn_sock.sendall(msg_bytes)
 
-    #recebe a resposta
+    #recebe a resposta em bytes
     size_bytes = sock_utils.receive_all(conn_sock, 4)
     size = struct.unpack('i', size_bytes)[0]
 
     #desserializa a resposta
-    resposta_bytes = conn_sock.recv(size)  
+    resposta_bytes = sock_utils.receive_all(conn_sock,size)  
     resposta = pickle.loads(resposta_bytes)
 
     print('Recebi: %s' % resposta) 
