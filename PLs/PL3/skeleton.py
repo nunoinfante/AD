@@ -1,6 +1,4 @@
-import socket as s
-import pickle, struct
-import sock_utils
+import pickle
 
 class ListSkeleton:
 

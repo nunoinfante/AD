@@ -1,6 +1,7 @@
 import sys, socket as s  
 from skeleton import *
 import sock_utils
+import struct
 
 HOST = ''   
 
