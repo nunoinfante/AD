@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Aplicações Distribuídas - Projeto 1 - net_client.py
+Aplicações Distribuídas - Projeto 2 - net_client.py
 Grupo: 50
 Números de aluno: 53330, 55411
 """

@@ -1,10 +1,10 @@
 """
-Aplicações Distribuídas - Projeto 1 - sock_utils.py
+Aplicações Distribuídas - Projeto 2 - sock_utils.py
 Grupo: 50
 Números de aluno: 53330, 55411
 """
 
-import socket as s, pickle, struct
+import socket as s
 
 #listener_socket = create_tcp_server_socket(address, port, queue_size)
 def create_tcp_server_socket(address, port, queue_size):
@@ -29,5 +29,6 @@ def receive_all(socket, length):
             return None
         data.extend(packet)
     return data
+
 
 

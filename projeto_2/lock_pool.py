@@ -1,13 +1,12 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 """
 Aplicações Distribuídas - Projeto 2 - lock_pool.py
 Grupo: 50
 Números de aluno: 53330, 55411
 """
-
-# Zona para fazer importação
-import sys, sock_utils, time
-
-###############################################################################
+# Zona para fazer imports
+import time
 
 class resource_lock:
     def __init__(self, resource_id):
@@ -34,17 +33,17 @@ class resource_lock:
                 self.lock_w_count += 1
                 self.deadline = time.time() + time_limit
                 self.lock_w.append((client_id, self.deadline))
-                return [11, True]
+                return True
             else:
-                return [11, False]
+                return False
         else:
             if self.status() in ['LOCKED-R', 'UNLOCKED']:
                 self.deadline = time.time() + time_limit
                 self.lock_r.append((client_id, self.deadline))
                 self.state = 'LOCKED-R'
-                return [11, True]
+                return True
             else:
-                return [11, False]
+                return False
 
 
     def release(self):
@@ -68,18 +67,18 @@ class resource_lock:
             if self.status() == 'LOCKED-W' and client_id == self.lock_w[0][0]:
                 self.lock_w.pop(-1)
                 self.state = 'UNLOCKED'
-                return [21, True]
+                return True
             else:
-                return [21, False]
+                return False
         else:
             r_id = list(map(lambda x : x[0], self.lock_r))
             if self.status() == 'LOCKED-R' and client_id in r_id:
                 self.lock_r.pop(r_id.index(client_id))
                 if not self.lock_r:
                     self.state = 'UNLOCKED'
-                return [21, True]
+                return True
             else:
-                return [21, False]
+                return False
 
 
     def status(self):
@@ -87,14 +86,14 @@ class resource_lock:
         Obtém o estado do recurso. Retorna LOCKED-W ou LOCKED-R ou UNLOCKED 
         ou DISABLED.
         """
-        return [31, self.state]
+        return self.state
 
 
     def stats(self):
         """
         Retorna o número de bloqueios de escrita feitos neste recurso. 
         """
-        return [41, self.lock_w_count]
+        return self.lock_w_count
 
 
     def disable(self):
@@ -161,8 +160,8 @@ class lock_pool:
         Tenta bloquear (do tipo R ou W) o recurso resource_id pelo cliente client_id, 
         durante time_limit segundos. Retorna OK, NOK ou UNKNOWN RESOURCE.
         """
-        if resource_id >= len(self.recursos) or resource_id <= 0:
-            return [11, None]
+        if resource_id > len(self.recursos) or resource_id <= 0:
+            return None
         for recurso in self.recursos:
             if recurso.resource_id == resource_id:
                 return recurso.lock(type, client_id, time_limit)
@@ -173,8 +172,8 @@ class lock_pool:
         Liberta o bloqueio (do tipo R ou W) sobre o recurso resource_id pelo cliente 
         client_id. Retorna OK, NOK ou UNKNOWN RESOURCE.
         """
-        if resource_id >= len(self.recursos) or resource_id < 0:
-            return [21, None]
+        if resource_id > len(self.recursos) or resource_id <= 0:
+            return None
         for recurso in self.recursos:
             if recurso.resource_id == resource_id:
                 return recurso.unlock(type, client_id)
@@ -185,8 +184,8 @@ class lock_pool:
         Obtém o estado de um recurso. Retorna LOCKED, UNLOCKED,
         DISABLED ou UNKNOWN RESOURCE.
         """
-        if resource_id >= len(self.recursos) or resource_id < 0:
-            return [31, None]
+        if resource_id > len(self.recursos) or resource_id <= 0:
+            return None
         for recurso in self.recursos:
             if recurso.resource_id == resource_id:
                 return recurso.status()
@@ -200,8 +199,8 @@ class lock_pool:
         <número de recursos desabilitados>
         """
         if option == 'K':
-            if resource_id >= len(self.recursos) or resource_id < 0:
-                return [41, None]
+            if resource_id > len(self.recursos) or resource_id <= 0:
+                return None
             for recurso in self.recursos:
                 if recurso.resource_id == resource_id:
                     return recurso.stats()
@@ -210,13 +209,13 @@ class lock_pool:
             for recurso in self.recursos:
                 if recurso.status() == 'UNLOCKED':
                     counter += 1
-            return [51, counter]
+            return counter
         else:
             counter = 0
             for recurso in self.recursos:
                 if recurso.status() == 'DISABLED':
                     counter += 1
-            return [61, counter]
+            return counter
 
 
     def __repr__(self):
@@ -227,5 +226,5 @@ class lock_pool:
         """
         output = ""
         for recurso in self.recursos:
-            output += str(recurso)
-        return [71, output]
+            output += str(recurso.__repr__()) + ', '
+        return output
