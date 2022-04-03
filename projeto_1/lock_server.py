@@ -175,7 +175,7 @@ class lock_pool:
         Liberta o bloqueio (do tipo R ou W) sobre o recurso resource_id pelo cliente 
         client_id. Retorna OK, NOK ou UNKNOWN RESOURCE.
         """
-        if resource_id >= len(self.recursos) or resource_id < 0:
+        if resource_id >= len(self.recursos) or resource_id <= 0:
             return 'UNKNOWN RESOURCE'
         for recurso in self.recursos:
             if recurso.resource_id == resource_id:
@@ -267,7 +267,7 @@ while True:
         elif msg_split[0] == 'STATS' and (msg_split[1] == 'N' or msg_split[1] == 'D'):
             resp = lock_pool.stats(msg_split[1])
         elif msg_split[0] == 'PRINT':
-            resp = lock_pool.__repr__()
+            resp = lock_pool
 
         print(msg)
         print(resp)
