@@ -1,4 +1,5 @@
 import requests
+import urllib
 
 CLIENT_ID = '7245356318a948f4bed0bd361882b36f'
 CLIENT_SECRET = '206a7ffa6ef74f58b49098b71f35fad3'
@@ -24,20 +25,17 @@ headers = {
 BASE_URL = 'https://api.spotify.com/v1/'
 
 artist_id = '36QJpDe2go2KgaRleHCDTp'
-
-r = requests.get(BASE_URL + 'search?q=Chris%20Dea', headers=headers, params={'type': 'artist', 'limit': 4})
-
+r = requests.get(BASE_URL + 'artists/' + artist_id, headers=headers)
 d = r.json()
-print(d['artists']['items'][0]['uri'])
+print(d['name'])
 
-for a in d['artists']['items'][0]:
-   print(d['artists']['items'][0]['name'])
 
-# s = 'CREATE ARTIST Sam The Kid'
-# print(s)
-# s = s.split(' ', 2)[2].replace(' ', '%20')
-# print(s)
+track_id = '4KS15itaFKcYz06iEMw5GO'
+r = requests.get(BASE_URL + 'tracks/' + track_id, headers=headers)
+d = r.json()
+print(d['name'])
+# print(d['tracks']['items'][0]['name'])
+# print(d['tracks']['items'][0]['id'])
+# print(d['tracks']['items'][0]['artists'][0]['name'])
+# print(d['tracks']['items'][0]['artists'][0]['id'])
 
-comando = input('comando > ')
-comando_split = comando.split()
-print(f'http://localhost:5000/utilizadores/{comando_split[2]}/avaliacoes')

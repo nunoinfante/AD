@@ -4,7 +4,7 @@ import json
 while True:
     comando = input('comando > ')
     comando_split = comando.split()
-
+    
     if comando_split[0] == 'EXIT':
         break
 
@@ -29,7 +29,8 @@ while True:
             print('***')
 
         elif comando_split[1] == 'MUSICA':
-            musica = {'id_spotify' : comando_split[2]}
+            name = comando.split(' ', 2)[2]
+            musica = {'nome' : name}
             r = requests.post('http://localhost:5000/musicas', json = musica)
             print('***')
             print(f'HTTP Status: {r.status_code}') 
@@ -41,26 +42,31 @@ while True:
             if len(comando_split) != 4:
                 print('MISSING ARGUMENTS')
             else:
-                avaliacao = {'id_user' : comando_split[2], 'id_musica' : comando_split[3], 'avaliacao' : comando_split[4]}
-                r = requests.post(f'http://localhost:5000/utilizadores/{comando_split[2]}/avaliacoes')
+                avaliacao = {'id_user' : comando_split[1], 'id_musica' : comando_split[2], 'avaliacao' : comando_split[3]}
+                r = requests.post(f'http://localhost:5000/utilizadores/{comando_split[1]}/avaliacoes', json = avaliacao)
+                print('***')
+                print(f'HTTP Status: {r.status_code}') 
+                print(f'Mensagem: {r.content.decode()}') 
+                print('URL: http://localhost:5000/' + r.headers['location'])
+                print('***')
 
     elif comando_split[0] == 'READ':
         if comando_split[1] == 'UTILIZADOR' and len(comando_split) == 3:
-            r = requests.get('http://localhost:5000/utilizadores/' + comando_split[2])
+            r = requests.get(f'http://localhost:5000/utilizadores/{comando_split[2]}')
             print('***')
             print(f'HTTP Status: {r.status_code}') 
             print(f'Mensagem: {r.content.decode()}') 
             print('***')
 
         elif comando_split[1] == 'ARTISTA' and len(comando_split) == 3:
-            r = requests.get('http://localhost:5000/artistas/' + comando_split[2])
+            r = requests.get(f'http://localhost:5000/artistas/{comando_split[2]}')
             print('***')    
             print(f'HTTP Status: {r.status_code}') 
             print(f'Mensagem: {r.content.decode()}') 
             print('***')
 
         elif comando_split[1] == 'MUSICA' and len(comando_split) == 3:
-            r = requests.get('http://localhost:5000/musicas/' + comando_split[2])
+            r = requests.get(f'http://localhost:5000/musicas/{comando_split[2]}')
             print('***')
             print(f'HTTP Status: {r.status_code}') 
             print(f'Mensagem: {r.content.decode()}') 
@@ -91,7 +97,13 @@ while True:
                     print('***')
                 elif len(comando_split) == 4:
                     musicas_avaliacao = {'avaliacao' : comando_split[3]}
-                    #TODO
+                    r = requests.get('http://localhost:5000/musicas/avaliacoes', json = musicas_avaliacao)
+                    print('***')
+                    print(f'HTTP Status: {r.status_code}') 
+                    print(f'Mensagem: {r.content.decode()}') 
+                    print('URL: http://localhost:5000/musicas/avaliacoes')
+                    print('***')
+
             elif comando_split[2] == 'MUSICAS_A':
                 musicas_a = {'id_artista' : comando_split[3]}
                 #TODO
@@ -102,19 +114,19 @@ while True:
 
     elif comando_split[0] == 'DELETE':
         if comando_split[1] == 'UTILIZADOR' and len(comando_split) == 3:
-            r = requests.delete('http://localhost:5000/utilizadores/' + comando_split[2])
+            r = requests.delete(f'http://localhost:5000/utilizadores/{comando_split[2]}')
             print('***')
             print(f'HTTP Status: {r.status_code}') 
             print(f'Mensagem: {r.content.decode()}') 
             print('***')
         elif comando_split[1] == 'ARTISTA' and len(comando_split) == 3:
-            r = requests.delete('http://localhost:5000/artistas/' + comando_split[2])
+            r = requests.delete(f'http://localhost:5000/artistas/{comando_split[2]}')
             print('***')
             print(f'HTTP Status: {r.status_code}') 
             print(f'Mensagem: {r.content.decode()}') 
             print('***')
         elif comando_split[1] == 'MUSICA' and len(comando_split) == 3:
-            r = requests.delete('http://localhost:5000/musicas/' + comando_split[2])
+            r = requests.delete(f'http://localhost:5000/musicas/{comando_split[2]}')
             print('***')
             print(f'HTTP Status: {r.status_code}') 
             print(f'Mensagem: {r.content.decode()}') 
