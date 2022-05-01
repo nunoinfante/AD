@@ -1,261 +1,576 @@
+"""
+Aplicações Distribuídas - Projeto 3 - server.py
+Grupo: 50
+Números de aluno: 53330, 55411
+"""
+
 from flask import Flask, request, make_response 
-import sqlite3
-import requests
+import sqlite3, requests
+from os.path import isfile
 
 app = Flask(__name__)
 
-def get_spotify_data_artist(search):
-
-    search = search.replace(' ', '%20')
-
-    BASE_URL = 'https://api.spotify.com/v1/'
-    access_token = 'BQCfiJ6rWVfFijnGV5nLD3kJUdh0DVp15Jo7mB47YM1y0i4cj7a5b7czJCyVCbR5DVbqP5t03jyClKRfXR9g65D7uI8SB_WanWtWJ1a4kYCM31f9-RhNVX70FqCn0fUpL0EBDxPRu_VqW8AEzALmLBdf_zlAH3XBGQ'
+def get_spotify_data(id_spotify, type):
+    access_token = 'BQAGtCNMPNx62oFGzvKSgC3HEMYCwER_kiguG4ePz9qeHQNrhsC0jNnZ8RMT3T44sSkqbR1_x65PhGSwfChA_xXCbDkE2p_baMkVll4EexstehErQu2kGcTPRHww7VMtBwd_Yqjzk0g2FTaCd_PYHAB87Y1JEqEqcQ'
     headers = {'Authorization': f'Bearer {access_token}'}
 
-    r = requests.get(BASE_URL + f'search?q={search}', headers=headers, params={'type' : 'artist', 'limit' : 1})
+    if type == 'artist':
+        r = requests.get(f'https://api.spotify.com/v1/artists/{id_spotify}', headers=headers)
+        d = r.json()
 
-    d = r.json()
-    id = d['artists']['items'][0]['id']
-    name = d['artists']['items'][0]['name']
+        return d
 
-    return id, name
+    elif type == 'track':
+        r = requests.get(f'https://api.spotify.com/v1/tracks/{id_spotify}', headers=headers)
+        d = r.json()
 
-def get_spotify_data_track(search):
+        return d
 
-    search = search.replace(' ', '%20')
-
-    BASE_URL = 'https://api.spotify.com/v1/'
-    access_token = 'BQCfiJ6rWVfFijnGV5nLD3kJUdh0DVp15Jo7mB47YM1y0i4cj7a5b7czJCyVCbR5DVbqP5t03jyClKRfXR9g65D7uI8SB_WanWtWJ1a4kYCM31f9-RhNVX70FqCn0fUpL0EBDxPRu_VqW8AEzALmLBdf_zlAH3XBGQ'
-    headers = {'Authorization': f'Bearer {access_token}'}
-
-    r = requests.get(BASE_URL + f'search?q={search}', headers=headers, params={'type' : 'track', 'limit' : 1})
-
-    d = r.json()
-    id_track = d['tracks']['items'][0]['id']
-    track_name = d['tracks']['items'][0]['name']
-    id_artist = d['tracks']['items'][0]['artists'][0]['id']
-    artist_name = d['tracks']['items'][0]['artists'][0]['name']
-
-    return id_track, track_name, id_artist, artist_name
 
 def connection():
+    db_is_created = isfile('proj3.db')
     conn = sqlite3.connect('proj3.db')
+    cur = conn.cursor()
     conn.row_factory = sqlite3.Row
+    if not db_is_created:
+        with open('proj3.sql', mode='r') as db:
+            cur.executescript(db.read())
+            conn.commit()
+    else:
+        conn.execute("PRAGMA foreign_keys = ON")   
     return conn
 
-@app.route('/utilizadores', methods=['GET','POST'])
+@app.route('/utilizadores', methods=['GET','POST','PUT'])
 @app.route('/utilizadores/<int:id>', methods=['GET', 'DELETE'])
 @app.route('/utilizadores/all', methods=['GET', 'DELETE'])
 def utilizadores(id = None):
-    if request.method == 'POST':
-        body = request.get_json()
+    try:
+        if request.method == 'POST':   
+            body = request.get_json()
 
-        nome = body['nome']
-        senha = body['senha']
+            nome = body['nome']
+            senha = body['senha']
 
-        db = connection()
-        query = db.execute('INSERT INTO utilizadores VALUES (NULL, ?, ?)', (nome, senha))
-        db.commit()
-        db.close()
-
-        r = make_response('Utilizador criado')
-        r.headers['location'] = f'utilizadores/{query.lastrowid}'
-        return r
-
-    elif request.method == 'GET':
-        if id is None:
             db = connection()
-            rows = db.execute('SELECT * FROM utilizadores').fetchall()
-            db.close()
-
+            rows = db.execute('SELECT * FROM utilizadores WHERE nome = ?', (nome,)).fetchall()
             if not rows:
-                return 'Utilizadores inexistentes', 404
+                query = db.execute('INSERT INTO utilizadores VALUES (NULL, ?, ?)', (nome, senha))
+                db.commit()
+                db.close()
+                r = make_response('Utilizador criado', 201)
+                r.mimetype = 'application/json'
+                r.headers['location'] = f'utilizadores/{query.lastrowid}'
             else:
-                return {'utilizadores' : [dict(row) for row in rows]}, 200
+                db.close()
+                r = make_response('Nome utilizador ja existe', 404)
+                r.mimetype = 'application/api-problem+json'
+            return r
+
+        elif request.method == 'GET':
+            if id is None:
+                db = connection()
+                rows = db.execute('SELECT * FROM utilizadores').fetchall()
+                db.close()
+
+                if not rows:
+                    r = make_response('Utilizadores inexistentes', 404)
+                    r.mimetype = 'application/api-problem+json'
+                    return r
+                else:
+                    r = make_response({'utilizadores' : [dict(row) for row in rows]}, 200)
+                    r.mimetype = 'application/json'
+                    return r
+                    
+            else:
+                db = connection()
+                row = db.execute('SELECT * FROM utilizadores WHERE id = ?', (id,)).fetchone()
+                db.close()
+
+                if not row:
+                    r = make_response('Utilizador inexistente', 404)
+                    r.mimetype = 'application/api-problem+json'
+                    return r
+                else:
+                    r = make_response(dict(row), 200)
+                    r.mimetype = 'application/json'
+                    return r
+
+        elif request.method == 'DELETE':
+            if id is None:
+                db = connection()
+
+                row = db.execute('SELECT * FROM utilizadores').fetchone()
+
+                if not row:
+                    db.close()
+
+                    r = make_response('Utilizadores inexistentes', 404)
+                    r.mimetype = 'application/api-problem+json'
+                    return r
+
+                else:
+                    db.execute('DELETE FROM utilizadores')
+                    db.commit()
+                    db.close()
+
+                    r = make_response(f'Utilizadores eliminados', 200)
+                    r.mimetype = 'application/json'
+                    return r
+
+            else:
+                db = connection()
+
+                row = db.execute('SELECT * FROM utilizadores WHERE id = ?', (id,)).fetchone()
                 
-        else:
+                if not row:
+                    r = make_response('Utilizador inexistente', 404)
+                    r.mimetype = 'application/api-problem+json'
+                    return r
+
+                else:
+                    db.execute('DELETE FROM utilizadores WHERE id = ?', (id,))
+                    db.commit()
+                    db.close()
+
+                    r = make_response(f'Utilizador {id} eliminado', 200)
+                    r.mimetype = 'application/json'
+                    return r
+
+        elif request.method == 'PUT':
+            body = request.get_json()
+
+            utilizador = body['id_user']
+            senha = body['password']
+
             db = connection()
-            row = db.execute('SELECT * FROM utilizadores WHERE id = ?', (id,)).fetchone()
-            db.close()
+            row = db.execute('SELECT * FROM utilizadores WHERE id = ?', (utilizador,)).fetchone()
 
             if not row:
-                return 'Utilizador inexistente', 404
+                db.close()
+
+                r = make_response('Utilizador nao existente', 404)
+                r.mimetype = 'application/api-problem+json'
+                return r
+
             else:
-                return dict(row), 200
+                db.execute('UPDATE utilizadores SET senha = ? WHERE id = ?', (senha, utilizador))
+                db.commit()
+                db.close()
 
-    elif request.method == 'DELETE':
-        if id is None:
-            db = connection()
-            db.execute('DELETE FROM utilizadores')
-            db.commit()
-            db.close()
-
-            r = make_response(f'Utilizadores eliminados')
-            return r
-        else:
-            db = connection()
-            db.execute('DELETE FROM utilizadores WHERE id = ?', (id,))
-            db.commit()
-            db.close()
-
-            r = make_response(f'Utilizador {id} eliminado')
-            return r
+                r = make_response(f'Utilizador {utilizador} atualizado', 200)
+                r.mimetype = 'application/json'
+                return r
+                
+    except sqlite3.IntegrityError:
+        r = make_response('Erro de integridade da base de dados', 500)
+        r.mimetype = 'application/api-problem+json'
+        return r
 
 @app.route('/artistas/<int:id>', methods=['GET', 'DELETE'])
 @app.route('/artistas', methods=['GET','POST'])
 @app.route('/artistas/all', methods=['GET', 'DELETE'])
 def artistas(id = None):
-    if request.method == 'POST':
-        body = request.get_json()
-
-        nome = body['nome']
-
-        id_spotify, nome = get_spotify_data_artist(nome)
-
-        db = connection()
-        query = db.execute('INSERT INTO artistas VALUES (NULL, ?, ?)', (id_spotify, nome))
-        db.commit()
-        db.close()
-
-        r = make_response('Artista criado')
-        r.headers['location'] = f'artistas/{query.lastrowid}'
-        return r
-
-    elif request.method == 'GET':
-        if id is None:
-            db = connection()
-            rows = db.execute('SELECT * FROM artistas').fetchall()
-            db.close()
-
-            if not rows:
-                return 'Artistas inexistentes', 404
-            else:
-                return {'artistas' : [dict(row) for row in rows]}, 200
-        else:
-            db = connection()
-            row = db.execute('SELECT * FROM artistas WHERE id = ?', (id,)).fetchone()
-            db.close()
-
-            if not row:
-                return 'Utilizador inexistente', 404
-            else:
-                return dict(row), 200
-                
-    elif request.method == 'DELETE':
-        if id is None:
-            db = connection()
-            db.execute('DELETE FROM artistas')
-            db.commit()
-            db.close()
-
-            r = make_response(f'Artistas eliminados')
-            return r
-        else:
-            db = connection()
-            db.execute('DELETE FROM artistas WHERE id = ?', (id,))
-            db.commit()
-            db.close()
-
-            r = make_response(f'Artista {id} eliminado')
-            return r
-
-@app.route('/musicas/all', methods=['GET', 'DELETE'])
-@app.route('/musicas', methods=['GET','POST'])
-@app.route('/musicas/<int:id>', methods=['GET', 'DELETE'])
-def musicas(id = None):
-    if request.method == 'POST':
-        body = request.get_json()
-
-        nome = body['nome']
-
-        id_spotify_track, track_name, id_spotify_artist, artist_name = get_spotify_data_track(nome)
-
-        db = connection()
-        id_artista  = db.execute('SELECT * FROM artistas WHERE id_spotify = ?', (id_spotify_artist,)).fetchone()
-        
-        if id_artista is None:
-            query = db.execute('INSERT INTO artistas VALUES (NULL, ?, ?)', (id_spotify_artist, artist_name))
-            id_artista  = db.execute('SELECT * FROM artistas WHERE id_spotify = ?', (id_spotify_artist,)).fetchone()['id_spotify']
-            query1 = db.execute('INSERT INTO musicas VALUES (NULL, ?, ?, ?)', (id_spotify_track, track_name, id_artista))
-            r = make_response('Artista e musica criadas')
-            r.headers['location'] = f'musicas/{query1.lastrowid}'
-        else:
-            query = db.execute('INSERT INTO musicas VALUES (NULL, ?, ?, ?)', (id_spotify_track, track_name, id_artista['id_spotify']))
-            r = make_response('Musica criada')
-            r.headers['location'] = f'musicas/{query.lastrowid}'
-
-        db.commit()
-        db.close()
-
-        return r
-
-    elif request.method == 'GET':
-        if id is None:
-            db = connection()
-            rows = db.execute('SELECT * FROM musicas').fetchall()
-            db.close()
-
-            if not rows:
-                return 'Musicas inexistentes', 404
-            else:
-                return {'musicas' : [dict(row) for row in rows]}, 200
-        else:
-            db = connection()
-            row = db.execute('SELECT * FROM musicas WHERE id = ?', (id,)).fetchone()
-            db.close()
-
-            if not row:
-                return 'Musica inexistente', 404
-            else:
-                return dict(row), 200
-
-@app.route('/utilizadores/<int:id>/avaliacoes', methods=['GET', 'POST'])
-@app.route('/musicas/avaliacoes', methods=['GET'])
-def avaliacoes(id = None):
-    if request.method == 'POST':
-        body = request.get_json()
-
-        id_user = body['id_user']
-        id_musica = body['id_musica']
-        avaliacao = body['avaliacao']
-
-        db = connection()
-        id_avaliacao = db.execute('SELECT * FROM avaliacoes WHERE sigla = ?', (avaliacao,)).fetchone()
-        db.execute('INSERT INTO playlists VALUES (?, ?, ?)', (id_user, id_musica, id_avaliacao['id']))
-        db.commit()
-        db.close()
-
-        r = make_response('Avaliacao criada')
-        r.headers['location'] = f'utilizadores/{id_user}/avaliacoes'
-        return r
-
-    elif request.method == 'GET':
-        if id is None:
+    try:
+        if request.method == 'POST':
             body = request.get_json()
 
+            id_spotify = body['id_spotify']
+
+            d = get_spotify_data(id_spotify, 'artist')
+            
+            if list(d.keys())[0] == 'error':
+                if (d['error']['status'] == 401):
+                    r = make_response(d['error']['message'], 401)
+                    r.mimetype = 'application/api-problem+json'
+                    return r
+
+            name = d['name']
+
+            db = connection()
+            row = db.execute('SELECT * FROM artistas WHERE id_spotify = ?', (id_spotify,)).fetchone()
+            if not row:
+                query = db.execute('INSERT INTO artistas VALUES (NULL, ?, ?)', (id_spotify, name))
+                db.commit()
+                db.close()
+
+                r = make_response('Artista criado', 201)
+                r.mimetype = 'application/json'
+                r.headers['location'] = f'artistas/{query.lastrowid}'
+            else:
+                db.close()
+                r = make_response(f'Ja existe artiste com o id: {id_spotify}', 404)
+                r.mimetype = 'application/api-problem+json'
+            return r
+
+        elif request.method == 'GET':
+            if id is None:
+                db = connection()
+                rows = db.execute('SELECT * FROM artistas').fetchall()
+                db.close()
+
+                if not rows:
+                    r = make_response('Artistas inexistentes', 404)
+                    r.mimetype = 'application/api-problem+json'
+                    return r
+                else:
+                    r = make_response({'artistas' : [dict(row) for row in rows]}, 200)
+                    r.mimetype = 'application/json'
+                    return r
+            else:
+                db = connection()
+                row = db.execute('SELECT * FROM artistas WHERE id = ?', (id,)).fetchone()
+                db.close()
+
+                if not row:
+                    r = make_response('Artista inexistente', 404)
+                    r.mimetype = 'application/api-problem+json'
+                    return r
+
+                else:
+                    r = make_response(dict(row), 200)
+                    r.mimetype = 'application/json'
+                    return r
+                    
+        elif request.method == 'DELETE':
+            if id is None:
+                db = connection()
+
+                row = db.execute('SELECT * FROM artistas').fetchone()
+
+                if not row:
+                    r = make_response('Artistas inexistente', 404)
+                    r.mimetype = 'application/api-problem+json'
+                    return r
+
+                else:
+                    db.execute('DELETE FROM artistas')
+                    db.commit()
+                    db.close()
+
+                    r = make_response(f'Artistas eliminados', 200)
+                    r.mimetype = 'application/json'
+                    return r
+            else:
+                db = connection()
+
+                row = db.execute('SELECT * FROM artistas WHERE id = ?', (id,)).fetchone()
+
+                if not row:
+                    r = make_response('Artista inexistente', 404)
+                    r.mimetype = 'application/api-problem+json'
+                    return r
+
+                else:
+                    db.execute('DELETE FROM artistas WHERE id = ?', (id,))
+                    db.commit()
+                    db.close()
+
+                    r = make_response(f'Artista {id} eliminado', 200)
+                    r.mimetype = 'application/json'
+                    return r
+
+    except sqlite3.IntegrityError:
+        r = make_response('Erro de integridade da base de dados', 500)
+        r.mimetype = 'application/api-problem+json'
+        return r
+
+@app.route('/musicas/all', methods=['GET', 'DELETE'])
+@app.route('/musicas', methods=['GET','POST', 'PUT'])
+@app.route('/musicas/all/avaliacoes/<string:id>', methods=['GET', 'DELETE'])
+@app.route('/musicas/<int:id>', methods=['GET', 'DELETE'])
+@app.route('/musicas/all/artistas/<int:id>', methods=['GET', 'DELETE'])
+@app.route('/musicas/all/utilizadores/<int:id>', methods=['GET', 'DELETE', 'POST'])
+def musicas(id = None):
+    try:
+        if request.method == 'POST':
+            if id is None:
+                body = request.get_json()
+
+                id_spotify_track = body['id_spotify']
+
+                d = get_spotify_data(id_spotify_track, 'track')
+
+                if list(d.keys())[0] == 'error':
+                    if (d['error']['status'] == 401):
+                        r = make_response(d['error']['message'], 401)
+                        r.mimetype = 'application/api-problem+json'
+                        return r
+
+                track_name = d['name']
+                artist_name = d['artists'][0]['name']
+                id_spotify_artist = d['artists'][0]['id']
+
+                db = connection()
+                id_artista  = db.execute('SELECT * FROM artistas WHERE id_spotify = ?', (id_spotify_artist,)).fetchone()
+                row = db.execute('SELECT * FROM musicas WHERE id_spotify = ?', (id_spotify_track,)).fetchone()
+
+                if id_artista is None:
+                    query = db.execute('INSERT INTO artistas VALUES (NULL, ?, ?)', (id_spotify_artist, artist_name))
+                    id_artista  = db.execute('SELECT * FROM artistas WHERE id_spotify = ?', (id_spotify_artist,)).fetchone()['id']
+                    
+                    if row is None:
+                        query1 = db.execute('INSERT INTO musicas VALUES (NULL, ?, ?, ?)', (id_spotify_track, track_name, id_artista))
+                        r = make_response('Artista e musica criadas', 201)
+                        r.mimetype = 'application/json'
+                        r.headers['location'] = f'musicas/{query1.lastrowid}'
+                        
+                    else:
+                        r = make_response(f'Musica com id: {id_spotify_track} ja existe', 404)
+                        r.mimetype = 'application/api-problem+json'
+
+                else:
+                    row = db.execute('SELECT * FROM musicas WHERE id_spotify = ?', (id_spotify_track,)).fetchone()
+                    if row is None:
+                        query = db.execute('INSERT INTO musicas VALUES (NULL, ?, ?, ?)', (id_spotify_track, track_name, id_artista['id']))
+                        r = make_response('Musica criada', 201)
+                        r.mimetype = 'application/json'
+                        r.headers['location'] = f'musicas/{query.lastrowid}'
+                    else:
+                        r = make_response(f'Musica com id: {id_spotify_track} ja existe', 404)
+                        r.mimetype = 'application/api-problem+json'
+
+                db.commit()
+                db.close()
+                return r
+
+            else:
+                body = request.get_json()
+
+                id_musica = body['id_musica']
+                avaliacao = body['avaliacao']
+
+                db = connection()
+                id_avaliacao = db.execute('SELECT * FROM avaliacoes WHERE sigla = ?', (avaliacao,)).fetchone()
+                row = db.execute('SELECT * FROM playlists WHERE id_user = ? AND id_musica = ?', (id,id_musica)).fetchone()
+                if not row:
+                    db.execute('INSERT INTO playlists VALUES (?, ?, ?)', (id, id_musica, id_avaliacao['id']))
+                    db.commit()
+                    db.close()
+                    r = make_response('Avaliacao criada', 201)
+                    r.mimetype = 'application/json'
+                    r.headers['location'] = f'/musicas/all/utilizadores/{id}'
+                else:
+                    db.close()
+                    r = make_response('Avaliacao ja existe', 404)
+                    r.mimetype = 'application/api-problem+json'
+                return r
+                
+
+        elif request.method == 'GET':
+            if id is None:
+                db = connection()
+                rows = db.execute('SELECT * FROM musicas').fetchall()
+                db.close()
+
+                if not rows:
+                    r = make_response('Musicas inexistentes', 404)
+                    r.mimetype = 'application/api-problem+json'
+                    return r
+                else:
+                    r = make_response({'musicas' : [dict(row) for row in rows]}, 200)
+                    r.mimetype = 'application/json'
+                    return r
+            else:
+                path = request.path.split('/')
+                path = list(filter(None, path))
+                if len(path) == 4:
+                    if path[2] == 'avaliacoes':
+                        db = connection()
+                        id_avaliacao = db.execute('SELECT * FROM avaliacoes WHERE sigla = ?', (id,)).fetchone()['id']
+                        musicas = db.execute('SELECT musicas.id, musicas.id_spotify, musicas.nome, musicas.id_artista, avaliacoes.sigla FROM musicas, playlists, avaliacoes WHERE musicas.id = playlists.id_musica AND playlists.id_avaliacao = avaliacoes.id AND avaliacoes.id = ?', (id_avaliacao,)).fetchall()
+                        db.close()
+
+                        if not musicas:
+                            r = make_response(f'Musicas avaliadas com "{id}" inexistentes', 404)
+                            r.mimetype = 'application/api-problem+json'
+                            return r
+                        else:
+                            r = make_response({'musicas' : [dict(row) for row in musicas]}, 200)
+                            r.mimetype = 'application/json'
+                            return r
+
+                    elif path[2] == 'artistas':
+                        db = connection()
+                        artista = db.execute('SELECT * FROM artistas WHERE id = ?', (id,)).fetchone()
+                        musicas_playlists = db.execute('SELECT musicas.id, musicas.id_spotify, musicas.nome, musicas.id_artista, avaliacoes.sigla FROM musicas, playlists, avaliacoes, artistas WHERE avaliacoes.id = playlists.id_avaliacao AND playlists.id_musica = musicas.id AND musicas.id_artista = artistas.id AND artistas.id = ?', (id,)).fetchall()
+                        db.close()
+
+                        if not artista:
+                            r = make_response('Artista inexistente', 404)
+                            r.mimetype = 'application/api-problem+json'
+                            return r
+
+                        elif not musicas_playlists:
+                            r = make_response(f'Musicas avaliadas do artista "{id}" inexistentes', 404)
+                            r.mimetype = 'application/api-problem+json'
+                            return r
+
+                        else:
+                            r = make_response({'musicas' : [dict(row) for row in musicas_playlists]}, 200)
+                            r.mimetype = 'application/json'
+                            return r
+
+                    elif path[2] == 'utilizadores':
+                        db = connection()
+                        user = db.execute('SELECT * FROM utilizadores WHERE id = ?', (id,)).fetchone()
+                        musicas_user = db.execute('SELECT musicas.id, musicas.id_spotify, musicas.nome, musicas.id_artista, avaliacoes.sigla FROM musicas, playlists, avaliacoes WHERE musicas.id = playlists.id_musica AND playlists.id_avaliacao = avaliacoes.id AND playlists.id_user = ?', (id,)).fetchall()
+                        db.close()
+
+                        if not user:
+                            r = ('Utilizador inexistente', 404)
+                            r.mimetype = 'application/api-problem+json'
+                            return r
+
+                        elif not musicas_user:
+                            r = make_response(f'Musicas avaliadas pelo utilizador "{id}" inexistentes', 404)
+                            r.mimetype = 'application/api-problem+json'
+                            return r
+                            
+                        else:
+                            r = make_response({'musicas' : [dict(row) for row in musicas_user]}, 200)
+                            r.mimetype = 'application/json'
+                            return r
+
+                else:
+                    db = connection()
+                    row = db.execute('SELECT * FROM musicas WHERE id = ?', (id,)).fetchone()
+                    db.close()
+
+                    if not row:
+                        r = make_response('Musica inexistente', 404)
+                        r.mimetype = 'application/api-problem+json'
+                        return r
+                    
+                    else:
+                        r = make_response(dict(row), 200)
+                        r.mimetype = 'application/json'
+                        return r
+
+        elif request.method == 'DELETE':
+            if id is None:
+                db = connection()
+                musicas = db.execute('SELECT * FROM musicas').fetchall()
+                query = db.execute('DELETE FROM musicas')
+                db.commit()
+                db.close()
+
+                if not musicas:
+                    r = make_response('Musicas inexistentes', 404)
+                    r.mimetype = 'application/api-problem+json'
+                    return r
+                else:
+                    r = make_response('Todas as musicas eliminadas', 200)
+                    r.mimetype = 'application/json'
+                    return r
+
+            else:
+                path = request.path.split('/')
+                path = list(filter(None, path))
+                
+                if len(path) == 4:
+                    if path[2] == 'avaliacoes':
+                        db = connection()
+                        musica_com_avaliacaoX = db.execute('SELECT * FROM musicas WHERE musicas.id IN (SELECT playlists.id_musica FROM playlists, avaliacoes WHERE playlists.id_avaliacao = avaliacoes.id AND avaliacoes.sigla = ?)', (id,)).fetchall()
+                        
+                        if not musica_com_avaliacaoX:
+                            db.close()
+                            r = make_response(f'Nao existe musica com a avaliacao {id}', 404)
+                            r.mimetype = 'application/api-problem+json'
+                            return r
+
+                        else:
+                            db.execute('DELETE FROM musicas WHERE musicas.id IN (SELECT playlists.id_musica FROM playlists, avaliacoes WHERE playlists.id_avaliacao = avaliacoes.id AND avaliacoes.sigla = ?)', (id,))
+                            db.commit()
+                            db.close()
+
+                            r = make_response(f'Musicas eliminadas', 200)
+                            r.mimetype = 'application/json'
+                            return r
+                            
+                    elif path[2] == 'artistas':
+                        db = connection()
+                        musicas_playlists = db.execute('SELECT musicas.id, musicas.id_spotify, musicas.nome, musicas.id_artista FROM musicas, playlists WHERE musicas.id_artista = ? AND musicas.id = playlists.id_musica', (id,)).fetchall()
+                        if not musicas_playlists:
+                            db.close()
+                            r = make_response('Artista nao tem musicas avaliadas', 404)
+                            r.mimetype = 'application/api-problem+json'
+                            return r
+
+                        else:
+                            db.execute('DELETE FROM musicas WHERE musicas.id_artista = ? AND musicas.id IN (SELECT playlists.id_musica FROM playlists)', (id,))
+                            db.commit()
+                            db.close()
+
+                            r = make_response(f'Musicas eliminadas', 200)
+                            r.mimetype = 'application/json'
+                            return r
+
+                    elif path[2] == 'utilizadores':
+                        db = connection()
+                        musicas_user = db.execute('SELECT musicas.id, musicas.id_spotify, musicas.nome, musicas.id_artista FROM musicas, playlists WHERE musicas.id = playlists.id_musica AND playlists.id_user = ?', (id,)).fetchall()
+                        if not musicas_user:
+                            db.close()
+                            r = make_response('Utilizador nao avaliou musicas', 404)
+                            r.mimetype = 'application/api-problem+json'
+                            return r
+
+                        else:
+                            db.execute('DELETE FROM musicas WHERE musicas.id IN (SELECT playlists.id_musica FROM playlists WHERE playlists.id_user = ?)', (id,))
+                            db.commit()
+                            db.close()
+
+                            r = make_response(f'Musicas eliminadas', 200)
+                            r.mimetype = 'application/json'
+                            return r
+                else:
+                    db = connection()
+                    row = db.execute('SELECT * FROM musicas WHERE id = ?', (id,)).fetchone()
+                    if not row:
+                        db.close()
+                        r = make_response('Musica inexistente', 404)
+                        r.mimetype = 'application/api-problem+json'
+                        return r
+
+                    else:
+                        db.execute('DELETE FROM musicas WHERE id = ?', (id,))
+                        db.commit()
+                        db.close()
+
+                        r = make_response(f'Musica eliminada', 200)
+                        r.mimetype = 'application/json'
+                        return r
+                        
+        
+        elif request.method == 'PUT':
+            body = request.get_json()
+            id_musica = body['id_musica']
             avaliacao = body['avaliacao']
+            id_user = body['id_user']
 
             db = connection()
+            row = db.execute('SELECT * from playlists WHERE id_user = ? AND id_musica = ?', (id_user, id_musica)).fetchone()
             id_avaliacao = db.execute('SELECT * FROM avaliacoes WHERE sigla = ?', (avaliacao,)).fetchone()['id']
-            musicas_avaliadas = db.execute('SELECT * FROM playlists WHERE id_avaliacao = ?', (id_avaliacao,)).fetchall()
-            ids_musicas = [row['id_musica'] for row in musicas_avaliadas]
-            musicas = db.execute(f'SELECT * FROM musicas WHERE id IN {tuple(ids_musicas)}').fetchall()
-            db.close()
 
-            if not musicas:
-                return f'Musicas avaliadas com "{avaliacao}" inexistentes', 404
+            if not row:
+                db.close()
+
+                r = make_response(f'Não existe avaliacao de {id_user} para a musica {id_musica}', 404)
+                r.mimetype = 'application/api-problem+json'
+                return r
+
             else:
-                return {'musicas' : [dict(row) for row in musicas]}, 200
-        else:
-            db = connection()
-            rows = db.execute('SELECT * FROM playlists WHERE id_user = ?', (id,)).fetchall()
-            db.close()
+                db.execute('UPDATE playlists SET id_avaliacao = ? WHERE id_musica = ? AND id_user = ?', (id_avaliacao, id_musica, id_user))
+                db.commit()
+                db.close()
 
-            if not rows:
-                return 'Musicas inexistentes', 404
-            else:
-                return {'musicas' : [dict(row) for row in rows]}, 200
+                r = make_response(f'Avaliacao do utilizador {id_user} para a musica {id_musica} atualizada', 200)
+                r.mimetype = 'application/json'
+                return r
 
+    except sqlite3.IntegrityError:
+        r = make_response('Erro de integridade da base de dados', 500)
+        r.mimetype = 'application/api-problem+json'
+        return r
 
 if __name__ == '__main__': 
     app.run(host="localhost", port=5000, debug=True)

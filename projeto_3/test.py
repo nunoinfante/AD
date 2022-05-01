@@ -39,3 +39,5 @@ print(d['name'])
 # print(d['tracks']['items'][0]['artists'][0]['name'])
 # print(d['tracks']['items'][0]['artists'][0]['id'])
 
+n = input('comando > ')
+print(n.split()[1])
