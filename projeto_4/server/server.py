@@ -606,3 +606,4 @@ if __name__ == '__main__':
     context.load_verify_locations(cafile='../certs/root.pem')
     context.load_cert_chain(certfile='../certs/serv.crt',keyfile='../certs/serv.key')
     app.run('localhost', ssl_context=context, debug = True)
+
